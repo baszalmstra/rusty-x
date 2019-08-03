@@ -25,8 +25,7 @@ pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
 
     let crossterm = Crossterm::new();
     let (_, term_height) = terminal().terminal_size();
-    let (_, cursor_pos) = crossterm.cursor().pos();
-    dbg!((&cursor_pos, &term_height));
+    let (_, start_cursor_pos) = crossterm.cursor().pos();
     write_results(
         &crossterm.terminal(),
         selections.iter().map(|s| s.as_str()).take(20),
@@ -42,9 +41,8 @@ pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
             _ => {}
         }
 
-//        crossterm.cursor().reset_position().unwrap();
-
-        crossterm.cursor().move_up(20);
+        let (_, cur_pos) = crossterm.cursor().pos();
+        crossterm.cursor().move_up(cur_pos - start_cursor_pos);
         write_results(
             &crossterm.terminal(),
             selections.iter().map(|s| s.as_str()).take(20),
