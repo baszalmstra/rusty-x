@@ -25,6 +25,7 @@ pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
     let screen = AlternateScreen::to_alternate(true);
 
     let mut matches = FuzzyMatcher::new(selections);
+    let mut selected_index = 0;
 
 //    let screen = RawScreen::into_raw_mode().unwrap();
 
@@ -36,6 +37,7 @@ pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
 
     rewrite_results(&crossterm, &matches);
     write_input(&crossterm, matches.get_search_term());
+    write_selected_index(&crossterm, &matches, selected_index);
 
     let input = crossterm.input();
     let mut stdin = input.read_sync();
@@ -44,21 +46,45 @@ pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
         match stdin.next() {
             Some(InputEvent::Keyboard(KeyEvent::Char('\n'))) => {
                 // Select the top matches
-                break matches.get_matches().iter().map(|(i, ..)| *i).take(1).collect();
+                break matches.get_matches().iter().map(|(i, ..)| *i).rev().nth(selected_index).map(|e| vec![e]).unwrap_or(Vec::new());
+            }
+            Some(InputEvent::Keyboard(KeyEvent::Up)) => {
+                selected_index = if selected_index + 1 >= matches.get_matches().len() {
+                    selected_index
+                } else {
+                    clear_selected_index(&crossterm, &matches, selected_index);
+                    selected_index += 1;
+                    write_selected_index(&crossterm, &matches, selected_index);
+                    selected_index
+                };
+            }
+            Some(InputEvent::Keyboard(KeyEvent::Down)) => {
+                selected_index = if selected_index > 0 {
+                    clear_selected_index(&crossterm, &matches, selected_index);
+                    selected_index -= 1;
+                    write_selected_index(&crossterm, &matches, selected_index);
+                    selected_index
+                } else {
+                    selected_index
+                };
             }
             Some(InputEvent::Keyboard(KeyEvent::Char(c))) => {
                 let mut search_term = matches.get_search_term().clone();
                 search_term.push(c);
                 matches.set_search_term(&search_term);
+                if selected_index >= matches.get_matches().len() { selected_index = if matches.get_matches().is_empty() { 0 } else { matches.get_matches().len() - 1 }}
                 rewrite_results(&crossterm, &matches);
                 write_input(&crossterm, matches.get_search_term());
+                write_selected_index(&crossterm, &matches, selected_index);
             },
             Some(InputEvent::Keyboard(KeyEvent::Backspace)) => {
                 let mut search_term = matches.get_search_term().clone();
                 search_term.pop();
                 matches.set_search_term(&search_term);
+                if selected_index >= matches.get_matches().len() { selected_index = if matches.get_matches().is_empty() { 0 } else { matches.get_matches().len() - 1 }}
                 rewrite_results(&crossterm, &matches);
                 write_input(&crossterm, matches.get_search_term());
+                write_selected_index(&crossterm, &matches, selected_index);
             }
             _ => {}
         }
@@ -66,6 +92,38 @@ pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
 
     crossterm.cursor().show();
     selected_indices
+}
+
+fn write_selected_index<'a>(
+    crossterm: &Crossterm,
+    matches: &FuzzyMatcher<'a>,
+    selected_index: usize
+) {
+    let matches = matches.get_matches();
+    if selected_index >= matches.len() {
+        return;
+    }
+
+    let (_, height) = crossterm.terminal().terminal_size();
+    crossterm.cursor().goto(0, height-3-selected_index as u16);
+    let terminal = crossterm.terminal();
+    terminal.write(format!("{}>{}", Colored::Fg(Color::Red), Attribute::Reset));
+}
+
+fn clear_selected_index<'a>(
+    crossterm: &Crossterm,
+    matches: &FuzzyMatcher<'a>,
+    selected_index: usize
+) {
+    let matches = matches.get_matches();
+    if selected_index >= matches.len() {
+        return;
+    }
+
+    let (_, height) = crossterm.terminal().terminal_size();
+    crossterm.cursor().goto(0, height-3-selected_index as u16);
+    let terminal = crossterm.terminal();
+    terminal.write("  ");
 }
 
 fn rewrite_results<'a>(
@@ -95,15 +153,18 @@ fn write_results<'a>(
     height: u16
 ) {
     // Write empty lines
-    for _ in matches.get_matches().len() ..  height as usize {
+    for _ in matches.get_matches().len() ..  height as usize - 1 {
         terminal.clear(ClearType::CurrentLine);
         terminal.write(format!("\r\n"));
     }
 
-    for (_, s, score, indices) in matches.get_matches().iter().take(height as usize) {
+    for (_, s, score, indices) in matches.get_matches().iter().take(height as usize - 1) {
         terminal.clear(ClearType::CurrentLine);
-        terminal.write(format!("{}\r\n", s));
+        terminal.write(format!("  {}\r\n", s));
     }
+
+    terminal.clear(ClearType::CurrentLine);
+    terminal.write(format!("{}/{}\r\n", matches.get_matches().len(), matches.get_selections().len()));
 }
 
 struct FuzzyMatcher<'a> {
@@ -136,6 +197,10 @@ impl<'a> FuzzyMatcher<'a> {
 
     pub fn get_matches(&self) -> &[(usize, &'a String, i64, Vec<usize>)] {
         &self.matches
+    }
+
+    pub fn get_selections(&self) -> &'a Vec<String> {
+        self.selections
     }
 
     fn update_matches(&mut self) {
