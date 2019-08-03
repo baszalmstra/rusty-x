@@ -1,9 +1,5 @@
-extern crate dirs;
-extern crate serde;
-extern crate toml;
-
-use error;
-use git;
+use crate::error;
+use crate::git;
 use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};

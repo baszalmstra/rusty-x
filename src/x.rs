@@ -1,8 +1,8 @@
-use error::Error;
-use error::Error::InternalError;
-use git;
-use project;
-use snippet;
+use crate::error::Error;
+use crate::error::Error::InternalError;
+use crate::git;
+use crate::project;
+use crate::snippet;
 
 use std::process::Command;
 

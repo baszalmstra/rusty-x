@@ -1,12 +1,5 @@
 #[macro_use]
 extern crate serde_derive;
-extern crate docopt;
-
-extern crate dirs;
-extern crate rusty_x;
-extern crate skim;
-
-extern crate ansi_term;
 
 use ansi_term::Colour::Yellow;
 use ansi_term::{ANSIString, ANSIStrings};
@@ -17,9 +10,9 @@ use std::path;
 
 use docopt::Docopt;
 
-use skim::{Skim, SkimOptionsBuilder};
+//use skim::{Skim, SkimOptionsBuilder};
 
-use rusty_x::Snippet;
+use rusty_x::{Snippet, show_multiple_results};
 use rusty_x::{edit_snippet, start_operation, Error, OpCode, Project, ProjectOperation};
 
 const USAGE: &'static str = "\
@@ -62,26 +55,6 @@ fn display_snippet(full_path: &path::Path) {
     printer
         .file(full_path.as_os_str().to_str().unwrap())
         .unwrap();
-}
-
-/// Use skim to show multiple results, where selections is the files to select
-fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
-    let options = SkimOptionsBuilder::default()
-        .ansi(true)
-        .height(Some("50%"))
-        .multi(true)
-        .build()
-        .unwrap();
-
-    let joined = selections
-        .iter()
-        .fold(String::new(), |acc, s| acc + s + "\n");
-
-    let selected_items = Skim::run_with(&options, Some(Box::new(Cursor::new(joined))))
-        .map(|out| out.selected_items)
-        .unwrap_or_else(|| Vec::new());
-
-    selected_items.iter().map(|item| item.get_index()).collect()
 }
 
 fn main() -> Result<(), Error> {
@@ -178,13 +151,14 @@ fn process_snippets(op_code: OpCode, snippets: &Vec<Snippet>) -> Result<(), Erro
         .iter()
         .map(|s| {
             s.tags
-                .iter()
-                .fold(String::new(), |s, val| {
-                    (s + ", "
-                        + &format!("{}", ansi_term::Style::new().bold().paint(val.trim()))
-                            .to_owned())
-                })
-                .replacen(",", "", 1)
+                .join(", ")
+//                .iter()
+//                .fold(String::new(), |s, val| {
+//                    (s + ", "
+//                        + &format!("{}", val.trim())//ansi_term::Style::new().bold().paint(val.trim()))
+//                            .to_owned())
+//                })
+//                .replacen(",", "", 1)
         })
         .collect();
 

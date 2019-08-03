@@ -15,3 +15,6 @@ pub use error::Error;
 
 mod git;
 pub use git::*;
+
+mod term_select;
+pub use term_select::show_multiple_results;

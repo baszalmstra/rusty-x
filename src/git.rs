@@ -1,5 +1,5 @@
-use error;
-use project::{Project, SnippetLocation};
+use crate::error;
+use crate::project::{Project, SnippetLocation};
 use std::ffi::OsStr;
 use std::io::Error;
 use std::process::Output;

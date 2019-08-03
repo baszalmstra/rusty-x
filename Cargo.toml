@@ -8,6 +8,7 @@ keywords = ["snippets", "cli"]
 repository = "https://github.com/tdejager/rusty-x"
 license = "MIT"
 description = "A snippet manager in Rust"
+edition="2018"
 
 
 [dependencies]
@@ -18,9 +19,9 @@ toml = "0.4"
 serde_derive = "1.0.66"
 serde = "1.0.66"
 dirs = "1.0.3"
-skim = "0.6.8"
 docopt = "1"
 ansi_term = "0.11.0"
+crossterm = "0.10"
 
 [lib]
 path = "src/lib.rs"
