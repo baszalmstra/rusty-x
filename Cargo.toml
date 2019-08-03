@@ -22,6 +22,7 @@ dirs = "1.0.3"
 docopt = "1"
 ansi_term = "0.11.0"
 crossterm = "0.10"
+fuzzy-matcher = "0.2.1"
 
 [lib]
 path = "src/lib.rs"
