@@ -40,7 +40,7 @@ pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
     );
 
     let input = crossterm.input();
-    let mut stdin = input.read_async();
+    let mut stdin = input.read_sync();
 
     loop {
         match stdin.next() {
@@ -51,18 +51,16 @@ pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
                 let mut search_term = matches.get_search_term().clone();
                 search_term.push(c);
                 matches.set_search_term(&search_term);
-                rewrite_results(&crossterm, &matches, max_items, start_cursor_pos);
             },
             Some(InputEvent::Keyboard(KeyEvent::Backspace)) => {
                 let mut search_term = matches.get_search_term().clone();
                 search_term.pop();
                 matches.set_search_term(&search_term);
-                rewrite_results(&crossterm, &matches, max_items, start_cursor_pos);
             },
             _ => {}
         }
 
-        thread::sleep(time::Duration::from_millis(10));
+        rewrite_results(&crossterm, &matches, max_items, start_cursor_pos);
     }
 
     crossterm.cursor().show();
