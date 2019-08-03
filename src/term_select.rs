@@ -1,8 +1,6 @@
-use crossterm::{
-    cursor, input, terminal, AlternateScreen, InputEvent, KeyEvent, RawScreen, Terminal,
-    TerminalCursor, ClearType
-};
+use crossterm::{cursor, input, terminal, AlternateScreen, InputEvent, KeyEvent, RawScreen, Terminal, TerminalCursor, ClearType, Crossterm};
 use std::{iter::Iterator, thread, time};
+use std::cmp::max;
 
 /// Use skim to show multiple results, where selections is the files to select
 pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
@@ -25,13 +23,16 @@ pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
 
     let screen = RawScreen::into_raw_mode().unwrap();
 
-    let mut term = terminal();
-    let (_, term_height) = term.terminal_size();
-    
-    let term_cursor = cursor();
-    term_cursor.hide();
+    let crossterm = Crossterm::new();
+    let (_, term_height) = terminal().terminal_size();
+    let (_, cursor_pos) = crossterm.cursor().pos();
+    dbg!((&cursor_pos, &term_height));
+    write_results(
+        &crossterm.terminal(),
+        selections.iter().map(|s| s.as_str()).take(20),
+    );
 
-    let input = input();
+    let input = crossterm.input();
     let mut stdin = input.read_async();
     loop {
         match stdin.next() {
@@ -41,28 +42,24 @@ pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
             _ => {}
         }
 
+//        crossterm.cursor().reset_position().unwrap();
+
+        crossterm.cursor().move_up(20);
         write_results(
-            &term,
-            &term_cursor,
-            term_height,
-            selections.iter().map(|s| s.as_str()),
+            &crossterm.terminal(),
+            selections.iter().map(|s| s.as_str()).take(20),
         );
 
         thread::sleep(time::Duration::from_millis(10));
     }
 
-    term_cursor.show();
     Vec::new()
 }
 
 fn write_results<'a>(
     terminal: &Terminal,
-    cursor: &TerminalCursor,
-    term_height: u16,
     selection: impl Iterator<Item = &'a str>,
 ) {
-    cursor.goto(0, term_height);
-    terminal.clear(ClearType::CurrentLine);
     for entry in selection {
         terminal.write(format!("{}\r\n", entry));
     }
