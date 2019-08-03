@@ -22,16 +22,18 @@ pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
     //
     //    selected_items.iter().map(|item| item.get_index()).collect()
 
+    let screen = AlternateScreen::to_alternate(true);
+
     let mut matches = FuzzyMatcher::new(selections);
 
-    let screen = RawScreen::into_raw_mode().unwrap();
+//    let screen = RawScreen::into_raw_mode().unwrap();
 
     let crossterm = Crossterm::new();
     crossterm.cursor().hide();
 
     let (_, term_height) = terminal().terminal_size();
     let (_, start_cursor_pos) = crossterm.cursor().pos();
-    let max_items = term_height/2;
+    let max_items = term_height-1;
 
     write_results(
         &crossterm.terminal(),
@@ -51,16 +53,16 @@ pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
                 let mut search_term = matches.get_search_term().clone();
                 search_term.push(c);
                 matches.set_search_term(&search_term);
+                rewrite_results(&crossterm, &matches, max_items, start_cursor_pos);
             },
             Some(InputEvent::Keyboard(KeyEvent::Backspace)) => {
                 let mut search_term = matches.get_search_term().clone();
                 search_term.pop();
                 matches.set_search_term(&search_term);
-            },
+                rewrite_results(&crossterm, &matches, max_items, start_cursor_pos);
+            }
             _ => {}
         }
-
-        rewrite_results(&crossterm, &matches, max_items, start_cursor_pos);
     }
 
     crossterm.cursor().show();
@@ -74,8 +76,8 @@ fn rewrite_results<'a>(
     start_pos: u16,
 ) {
     crossterm.cursor().goto(0,0);
-    let (_, cur_pos) = crossterm.cursor().pos();
-    crossterm.cursor().move_down(start_pos -  cur_pos);
+//    let (_, cur_pos) = crossterm.cursor().pos();
+//    crossterm.cursor().move_down(start_pos -  cur_pos);
     crossterm.terminal().clear(ClearType::CurrentLine);
     write_results(
         &crossterm.terminal(),
