@@ -1,4 +1,4 @@
-use crossterm::{cursor, input, terminal, AlternateScreen, InputEvent, KeyEvent, RawScreen, Terminal, TerminalCursor, ClearType, Crossterm};
+use crossterm::{cursor, input, terminal, AlternateScreen, InputEvent, KeyEvent, RawScreen, Terminal, TerminalCursor, ClearType, Crossterm, Colored, Color, Attribute, Styler};
 use fuzzy_matcher::skim::fuzzy_indices;
 use std::{iter::Iterator, thread, time};
 use std::cmp::max;
@@ -33,59 +33,60 @@ pub fn show_multiple_results(selections: &Vec<String>) -> Vec<usize> {
 
     let (_, term_height) = terminal().terminal_size();
     let (_, start_cursor_pos) = crossterm.cursor().pos();
-    let max_items = term_height-1;
 
-    write_results(
-        &crossterm.terminal(),
-        &matches,
-        max_items
-    );
+    rewrite_results(&crossterm, &matches);
+    write_input(&crossterm, matches.get_search_term());
 
     let input = crossterm.input();
     let mut stdin = input.read_sync();
 
-    loop {
+    let selected_indices = loop {
         match stdin.next() {
             Some(InputEvent::Keyboard(KeyEvent::Char('\n'))) => {
-                break;
+                // Select the top matches
+                break matches.get_matches().iter().map(|(i, ..)| *i).take(1).collect();
             }
             Some(InputEvent::Keyboard(KeyEvent::Char(c))) => {
                 let mut search_term = matches.get_search_term().clone();
                 search_term.push(c);
                 matches.set_search_term(&search_term);
-                rewrite_results(&crossterm, &matches, max_items, start_cursor_pos);
+                rewrite_results(&crossterm, &matches);
+                write_input(&crossterm, matches.get_search_term());
             },
             Some(InputEvent::Keyboard(KeyEvent::Backspace)) => {
                 let mut search_term = matches.get_search_term().clone();
                 search_term.pop();
                 matches.set_search_term(&search_term);
-                rewrite_results(&crossterm, &matches, max_items, start_cursor_pos);
+                rewrite_results(&crossterm, &matches);
+                write_input(&crossterm, matches.get_search_term());
             }
             _ => {}
         }
-    }
+    };
 
     crossterm.cursor().show();
-    Vec::new()
+    selected_indices
 }
 
 fn rewrite_results<'a>(
     crossterm: &Crossterm,
     matches: &FuzzyMatcher<'a>,
-    height: u16,
-    start_pos: u16,
 ) {
+    let (_, height) = crossterm.terminal().terminal_size();
     crossterm.cursor().goto(0,0);
-//    let (_, cur_pos) = crossterm.cursor().pos();
-//    crossterm.cursor().move_down(start_pos -  cur_pos);
     crossterm.terminal().clear(ClearType::CurrentLine);
     write_results(
         &crossterm.terminal(),
         &matches,
         height
     );
+}
+
+fn write_input(crossterm: &Crossterm, search_term: &String) {
+    let (_, height) = crossterm.terminal().terminal_size();
+    crossterm.cursor().goto(0,height);
     crossterm.terminal().clear(ClearType::CurrentLine);
-    crossterm.terminal().write(format!("> {}", matches.get_search_term()));
+    crossterm.terminal().write(format!("{}>{}{} {}{}", Colored::Fg(Color::Blue), Colored::Fg(Color::White), Attribute::Bold, search_term, Attribute::Reset));
 }
 
 fn write_results<'a>(
@@ -99,7 +100,7 @@ fn write_results<'a>(
         terminal.write(format!("\r\n"));
     }
 
-    for (s, score, indices) in matches.get_matches().iter().take(height as usize) {
+    for (_, s, score, indices) in matches.get_matches().iter().take(height as usize) {
         terminal.clear(ClearType::CurrentLine);
         terminal.write(format!("{}\r\n", s));
     }
@@ -107,7 +108,7 @@ fn write_results<'a>(
 
 struct FuzzyMatcher<'a> {
     selections: &'a Vec<String>,
-    matches: Vec<(&'a String, i64, Vec<usize>)>,
+    matches: Vec<(usize, &'a String, i64, Vec<usize>)>,
     search_term: String,
 }
 
@@ -133,20 +134,20 @@ impl<'a> FuzzyMatcher<'a> {
         &self.search_term
     }
 
-    pub fn get_matches(&self) -> &[(&'a String, i64, Vec<usize>)] {
+    pub fn get_matches(&self) -> &[(usize, &'a String, i64, Vec<usize>)] {
         &self.matches
     }
 
     fn update_matches(&mut self) {
-        let mut matches = self.selections
+        self.matches = self.selections
             .iter()
-            .filter_map(|s| match fuzzy_indices(s.as_str(), &self.search_term) {
-                Some((score, indices)) => Some((s, score, indices)),
+            .enumerate()
+            .filter_map(|(i, s)| match fuzzy_indices(s.as_str(), &self.search_term) {
+                Some((score, indices)) => Some((i, s, score, indices)),
                 None => None
             })
-            .collect::<Vec<(&String, i64, Vec<usize>)>>();
+            .collect();
 
-        matches.sort_by(|(_, score_a, _), (_, score_b, _)| score_a.cmp(score_b));
-        self.matches = matches;
+        self.matches.sort_by(|(_, _, score_a, _), (_, _, score_b, _)| score_a.cmp(score_b));
     }
 }
